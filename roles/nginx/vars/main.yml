@@ -1,4 +1,1 @@
----
-nginx_package: nginx
-nginx_service: nginx
-
+nginx_port: 80
