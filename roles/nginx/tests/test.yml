@@ -1,5 +1,5 @@
----
-- hosts: all
-  become: yes
+- name: Test nginx role
+  hosts: all
+  become: true
   roles:
     - nginx
