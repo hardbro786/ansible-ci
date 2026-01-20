@@ -1,0 +1,27 @@
+---
+- name: Install NGINX
+  apt:
+    name: "{{ nginx_package }}"
+    state: present
+    update_cache: yes
+
+- name: Copy nginx config from template
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  notify: restart nginx
+
+- name: Copy index.html to web root
+  copy:
+    src: index.html
+    dest: /var/www/html/index.html
+    owner: "{{ nginx_user }}"
+    group: "{{ nginx_user }}"
+    mode: '0644'
+
+- name: Start and enable NGINX
+  service:
+    name: "{{ nginx_service }}"
+    state: started
+    enabled: yes
+

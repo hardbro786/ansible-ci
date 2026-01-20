@@ -1,0 +1,15 @@
+user {{ nginx_user }};
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen {{ nginx_port }};
+        location / {
+            return 200 "NGINX from Ansible Role\n";
+        }
+    }
+}
