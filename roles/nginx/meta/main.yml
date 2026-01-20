@@ -1,13 +1,5 @@
----
 galaxy_info:
   author: Hardik Modi
-  description: Simple NGINX role for Ubuntu
+  description: Install and configure Nginx
+  min_ansible_version: "2.9"
   license: MIT
-  min_ansible_version: 2.9
-  platforms:
-    - name: Ubuntu
-      versions:
-        - focal
-        - jammy
-dependencies: []
-
