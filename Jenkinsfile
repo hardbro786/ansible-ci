@@ -5,7 +5,8 @@ pipeline {
 
     stage('Checkout') {
       steps {
-        git 'https://github.com/org/ansible-roles.git'
+        git 'https://github.com/hardbro786/ansible-ci.git'
+	echo "Checkout Complete"
       }
     }
 
