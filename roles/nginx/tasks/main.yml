@@ -1,27 +1,27 @@
----
-- name: Install NGINX
-  apt:
-    name: "{{ nginx_package }}"
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: nginx
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Copy nginx config from template
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
-  notify: restart nginx
+    owner: root
+    group: root
+    mode: "0644"
 
-- name: Copy index.html to web root
-  copy:
+- name: Copy index.html
+  ansible.builtin.copy:
     src: index.html
     dest: /var/www/html/index.html
-    owner: "{{ nginx_user }}"
-    group: "{{ nginx_user }}"
-    mode: '0644'
+    owner: root
+    group: root
+    mode: "0644"
 
-- name: Start and enable NGINX
-  service:
-    name: "{{ nginx_service }}"
+- name: Ensure Nginx is running
+  ansible.builtin.service:
+    name: nginx
     state: started
-    enabled: yes
-
+    enabled: true
