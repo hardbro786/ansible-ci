@@ -12,7 +12,7 @@ pipeline {
 
     stage('Syntax Check') {
       steps {
-        sh 'sudo ansible-playbook playbook.yml --syntax-check'
+        sh 'ansible-playbook playbook.yml --syntax-check'
       }
     }
 
@@ -24,7 +24,7 @@ pipeline {
 
     stage('Dry Run') {
       steps {
-        sh 'ansible-playbook playbook.yml --check'
+        sh 'sudo ansible-playbook playbook.yml --check'
       }
     }
   }
