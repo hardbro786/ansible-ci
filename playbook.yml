@@ -1,6 +1,6 @@
 - name: CI Ready Playbook with Role Features
   hosts: localhost
-  become: true
+  become: false
 
   # 🔹 Variables (role/vars jaise)
   vars:
