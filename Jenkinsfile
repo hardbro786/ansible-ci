@@ -12,19 +12,19 @@ pipeline {
 
     stage('Syntax Check') {
       steps {
-        sh 'ansible-playbook roles/nginx/tests/test.yml -i roles/nginx/tests/inventory --syntax-check'
+        sh 'ansible-playbook playbook.yml --syntax-check'
       }
     }
 
     stage('Lint') {
       steps {
-        sh 'ansible-lint roles/nginx'
+        sh 'ansible-lint playbook.yml'
       }
     }
 
     stage('Dry Run') {
       steps {
-        sh 'ansible-playbook roles/nginx/tests/test.yml -i roles/nginx/tests/inventory --check'
+        sh 'ansible-playbook playbook.yml --check'
       }
     }
   }
