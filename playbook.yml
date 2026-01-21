@@ -1,6 +1,6 @@
 - name: CI Ready Playbook with Role Features
   hosts: localhost
-  become: yes
+  become: true
 
   # 🔹 Variables (role/vars jaise)
   vars:
@@ -11,38 +11,40 @@
   tasks:
 
     # 🔹 Install Package
-    - name: Install nginx
-      apt:
+    - name: Install Nginx
+      ansible.builtin.apt:
         name: "{{ app_name }}"
         state: present
-        update_cache: yes
+        update_cache: true
       tags: install
-      notify: restart nginx
+      notify: Restart Nginx
 
     # 🔹 Create config directory
-    - name: Create nginx config directory
-      file:
+    - name: Create Nginx Config Directory
+      ansible.builtin.file:
         path: /etc/nginx/conf.d
         state: directory
+        mode: '0755'
       tags: config
 
     # 🔹 Jinja Template (role/templates jaise)
-    - name: Deploy nginx config using jinja template
-      template:
+    - name: Deploy Nginx Config Using Jinja Template
+      ansible.builtin.template:
         src: nginx.conf.j2
         dest: /etc/nginx/conf.d/app.conf
+        mode: '0644'
       tags: template
-      notify: restart nginx
+      notify: Restart Nginx
 
     # 🔹 Conditional task
-    - name: Print environment
-      debug:
+    - name: Print Environment
+      ansible.builtin.debug:
         msg: "Environment is {{ env }}"
       when: env == "dev"
 
     # 🔹 Loop example
-    - name: Install extra packages
-      apt:
+    - name: Install Extra Packages
+      ansible.builtin.apt:
         name: "{{ item }}"
         state: present
       loop:
@@ -52,7 +54,7 @@
 
   # 🔹 Handlers (role/handlers jaise)
   handlers:
-    - name: restart nginx
-      service:
+    - name: Restart Nginx
+      ansible.builtin.service:
         name: nginx
         state: restarted
