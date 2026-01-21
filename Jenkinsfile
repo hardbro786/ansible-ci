@@ -6,7 +6,7 @@ pipeline {
     stage('Checkout') {
       steps {
         git 'https://github.com/hardbro786/ansible-ci.git'
-	echo "Checkout Complete"
+        echo "Checkout Complete"
       }
     }
 
@@ -24,17 +24,17 @@ pipeline {
 
     stage('Dry Run') {
       steps {
-        sh 'sudo ansible-playbook playbook.yml --check'
+        sh 'ansible-playbook playbook.yml --check'
       }
     }
   }
 
   post {
     success {
-      echo " CI Passed – Role is Stable"
+      echo "CI Passed – Role is Stable ✅"
     }
     failure {
-      echo " CI Failed – Fix issues before merge"
+      echo "CI Failed – Fix issues before merge ❌"
     }
   }
 }
