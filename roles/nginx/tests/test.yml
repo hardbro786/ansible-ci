@@ -1,6 +1,6 @@
 - name: Test nginx role
   hosts: localhost
-  become: false
+  become: true
   gather_facts: false
 
   roles:
