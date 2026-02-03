@@ -1,41 +1,65 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(
+            name: 'RELEASE',
+            defaultValue: false,
+            description: 'Trigger role release'
+        )
+    }
+
     environment {
-        ANSIBLE_ROLES_PATH = "${WORKSPACE}/roles"
-        INVENTORY = "${WORKSPACE}/inventories/prod/hosts"
-        PLAYBOOK = "${WORKSPACE}/playbooks/site.yml"
+        ROLE_NAME = "my_role"
+        VERSION   = "v2.0.0"
     }
 
     stages {
 
-        stage('Checkout (Tag Based)') {
+        stage('Checkout Code') {
             steps {
-                echo "Checking out tagged release: ${env.GIT_TAG}"
-                checkout([
-                    $class: 'GitSCM',
-                    branches: [[name: 'refs/tags/*']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/hardbro786/ansible-ci.git'
-                    ]]
-                ])
+                git url: 'https://github.com/hardbro786/ansible-ci.git',
+                    branch: 'main'
+            }
+        }
+
+        stage('Role (CI Checks Passed)') {
+            steps {
+                echo 'Running ansible-lint'
+                sh 'ansible-lint roles/my_role'
+
+                echo 'Running molecule tests'
+                sh 'molecule test'
+            }
+        }
+
+        stage('Release Triggered') {
+            when {
+                expression { params.RELEASE == true }
+            }
+            steps {
+                echo 'Release has been triggered'
             }
         }
 
         stage('Approval') {
+            when {
+                expression { params.RELEASE == true }
+            }
             steps {
-                input message: "Approve deployment for tag ${env.GIT_TAG} ?",
-                      ok: 'Approve Deployment'
+                input message: "Approve release of role ${ROLE_NAME}?",
+                      ok: 'Approve'
             }
         }
 
-        stage('Deploy via Ansible Controller') {
+        stage('Tag Created') {
+            when {
+                expression { params.RELEASE == true }
+            }
             steps {
-                echo "Deploying using Ansible Controller"
                 sh """
-                    ansible-playbook ${PLAYBOOK} \
-                    -i ${INVENTORY} \
-                    --extra-vars "release_tag=${env.GIT_TAG}"
+                  git tag ${VERSION}
+                  git push origin ${VERSION}
                 """
             }
         }
@@ -43,13 +67,13 @@ pipeline {
 
     post {
         success {
-            echo "Deployment successful for tag ${env.GIT_TAG}"
+            echo "Current Tagged Artifact Ready: ${ROLE_NAME}:${VERSION}"
         }
         aborted {
-            echo "Deployment aborted – approval not granted"
+            echo "Release aborted during approval stage"
         }
         failure {
-            echo "Deployment failed – check logs"
+            echo "Role CI or release failed"
         }
     }
 }
