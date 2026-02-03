@@ -3,30 +3,31 @@ pipeline {
 
     options {
         timestamps()
-        disableConcurrentBuilds()
     }
 
     parameters {
         choice(
             name: 'RELEASE_TYPE',
-            choices: ['patch', 'minor', 'major', 'none'],
-            description: 'Select release type'
+            choices: ['none', 'patch', 'minor', 'major'],
+            description: 'Select release type for Ansible role'
         )
     }
 
     environment {
-        ROLE_NAME = 'nginx'
-        GIT_REPO  = 'github.com/hardbro786/ansible-ci.git'
-        GIT_CRED  = 'github-pat'   // Jenkins credential ID
+        ROLE_NAME = "nginx"
     }
 
     stages {
+
+        /* ---------------- CHECKOUT ---------------- */
 
         stage('Checkout Role Code') {
             steps {
                 checkout scm
             }
         }
+
+        /* ---------------- CI VALIDATION ---------------- */
 
         stage('Role CI Validation') {
             steps {
@@ -38,6 +39,8 @@ pipeline {
             }
         }
 
+        /* ---------------- RELEASE TRIGGER ---------------- */
+
         stage('Release Triggered') {
             when {
                 expression { params.RELEASE_TYPE != 'none' }
@@ -46,6 +49,8 @@ pipeline {
                 echo "Release triggered for role '${ROLE_NAME}'"
             }
         }
+
+        /* ---------------- APPROVAL ---------------- */
 
         stage('Approval') {
             when {
@@ -57,6 +62,8 @@ pipeline {
             }
         }
 
+        /* ---------------- VERSION CALCULATION ---------------- */
+
         stage('Version Calculation') {
             when {
                 expression { params.RELEASE_TYPE != 'none' }
@@ -64,18 +71,24 @@ pipeline {
             steps {
                 script {
                     def lastTag = sh(
-                        script: 'git describe --tags --abbrev=0 || echo v0.0.0',
+                        script: "git describe --tags --abbrev=0 || echo v0.0.0",
                         returnStdout: true
                     ).trim()
 
-                    def (major, minor, patch) = lastTag.replace('v','').tokenize('.').collect { it as int }
+                    def (v, major, minor, patch) = lastTag.tokenize('.')
+                    major = major.replace('v','').toInteger()
+                    minor = minor.toInteger()
+                    patch = patch.toInteger()
 
-                    if (params.RELEASE_TYPE == 'major') {
-                        major++; minor = 0; patch = 0
-                    } else if (params.RELEASE_TYPE == 'minor') {
-                        minor++; patch = 0
-                    } else {
+                    if (params.RELEASE_TYPE == 'patch') {
                         patch++
+                    } else if (params.RELEASE_TYPE == 'minor') {
+                        minor++
+                        patch = 0
+                    } else if (params.RELEASE_TYPE == 'major') {
+                        major++
+                        minor = 0
+                        patch = 0
                     }
 
                     env.NEW_VERSION = "v${major}.${minor}.${patch}"
@@ -84,6 +97,8 @@ pipeline {
             }
         }
 
+        /* ---------------- TAG ROLE ARTIFACT ---------------- */
+
         stage('Tag Role Artifact') {
             when {
                 expression { params.RELEASE_TYPE != 'none' }
@@ -91,40 +106,46 @@ pipeline {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: "${GIT_CRED}",
+                        credentialsId: 'github-pat',
                         usernameVariable: 'GIT_USER',
                         passwordVariable: 'GIT_TOKEN'
                     )
                 ]) {
-                    sh """
-                      git config user.name "jenkins"
-                      git config user.email "jenkins@company.com"
+                    sh '''
+                      git config user.name "hardbro786"
+                      git config user.email "modihardik19@gmail.com"
 
                       git tag ${NEW_VERSION}
 
-                      git push https://${GIT_USER}:${GIT_TOKEN}@${GIT_REPO} ${NEW_VERSION}
-                    """
+                      git push https://${GIT_USER}:${GIT_TOKEN}@github.com/hardbro786/ansible-ci.git ${NEW_VERSION}
+                    '''
                 }
             }
         }
+
+        /* ---------------- PUBLISH ARTIFACT ---------------- */
 
         stage('Publish Role Artifact') {
             when {
                 expression { params.RELEASE_TYPE != 'none' }
             }
             steps {
-                echo "✅ Role '${ROLE_NAME}' released as ${NEW_VERSION}"
-                echo "📦 Artifact = Git tag (${NEW_VERSION})"
+                echo "Role '${ROLE_NAME}' released as ${NEW_VERSION}"
+                echo "Artifact is the Git tag itself"
             }
         }
     }
 
     post {
         success {
-            echo "🎉 Role CD completed successfully"
+            echo "✅ Role CD completed successfully"
+            echo "📦 Released ${ROLE_NAME}:${NEW_VERSION}"
         }
         failure {
             echo "❌ Role CD failed"
+        }
+        aborted {
+            echo "⏹️ Role CD aborted"
         }
     }
 }
