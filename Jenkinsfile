@@ -1,11 +1,16 @@
 pipeline {
     agent any
 
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
     parameters {
         choice(
             name: 'RELEASE_TYPE',
             choices: ['none', 'patch', 'minor', 'major'],
-            description: 'Select role release type'
+            description: 'Select release type for Ansible Role'
         )
     }
 
@@ -24,7 +29,7 @@ pipeline {
 
         stage('Role CI Validation') {
             steps {
-                echo "Running syntax check on role"
+                echo "Running Ansible syntax check"
                 sh """
                   ansible-playbook --syntax-check ${ROLE_PATH}/tests/test.yml
                 """
@@ -41,7 +46,7 @@ pipeline {
                 expression { params.RELEASE_TYPE != 'none' }
             }
             steps {
-                echo "Release triggered for role: ${ROLE_NAME}"
+                echo "Release triggered for role '${ROLE_NAME}'"
             }
         }
 
@@ -66,10 +71,10 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    def v = lastTag.replace('v','').split('\\.')
-                    int major = v[0] as int
-                    int minor = v[1] as int
-                    int patch = v[2] as int
+                    def parts = lastTag.replace('v','').split('\\.')
+                    int major = parts[0] as int
+                    int minor = parts[1] as int
+                    int patch = parts[2] as int
 
                     if (params.RELEASE_TYPE == 'major') {
                         major++; minor = 0; patch = 0
@@ -80,7 +85,7 @@ pipeline {
                     }
 
                     env.NEW_VERSION = "v${major}.${minor}.${patch}"
-                    echo "New role version: ${env.NEW_VERSION}"
+                    echo "Calculated version: ${env.NEW_VERSION}"
                 }
             }
         }
@@ -102,16 +107,22 @@ pipeline {
                 expression { params.RELEASE_TYPE != 'none' }
             }
             steps {
-                echo "Role ${ROLE_NAME}:${NEW_VERSION} is now approved and published"
-                echo "Can be consumed by Playbook CD"
+                echo "Role artifact published: ${ROLE_NAME}:${NEW_VERSION}"
+                echo "Ready to be consumed by Playbook CD"
             }
         }
     }
 
     post {
         success {
-            echo "✅ Role CD completed successfully"
-            echo "✅ Current approved role: ${ROLE_NAME}:${NEW_VERSION}"
+            script {
+                if (params.RELEASE_TYPE != 'none') {
+                    echo "✅ Role CD completed successfully"
+                    echo "✅ Approved role artifact: ${ROLE_NAME}:${NEW_VERSION}"
+                } else {
+                    echo "✅ Role CI completed successfully (no release triggered)"
+                }
+            }
         }
         failure {
             echo "❌ Role CD failed"
