@@ -2,21 +2,22 @@ pipeline {
     agent any
 
     options {
-        disableConcurrentBuilds()
         timestamps()
+        disableConcurrentBuilds()
     }
 
     parameters {
         choice(
             name: 'RELEASE_TYPE',
-            choices: ['none', 'patch', 'minor', 'major'],
-            description: 'Select release type for Ansible Role'
+            choices: ['patch', 'minor', 'major', 'none'],
+            description: 'Select release type'
         )
     }
 
     environment {
-        ROLE_NAME = "nginx"
-        ROLE_PATH = "roles/nginx"
+        ROLE_NAME = 'nginx'
+        GIT_REPO  = 'github.com/hardbro786/ansible-ci.git'
+        GIT_CRED  = 'github-pat'   // Jenkins credential ID
     }
 
     stages {
@@ -30,14 +31,10 @@ pipeline {
         stage('Role CI Validation') {
             steps {
                 echo "Running Ansible syntax check"
-                sh """
-                  ansible-playbook --syntax-check ${ROLE_PATH}/tests/test.yml
-                """
+                sh 'ansible-playbook --syntax-check roles/nginx/tests/test.yml'
 
                 echo "Running ansible-lint"
-                sh """
-                  ansible-lint ${ROLE_PATH}
-                """
+                sh 'ansible-lint roles/nginx'
             }
         }
 
@@ -67,20 +64,17 @@ pipeline {
             steps {
                 script {
                     def lastTag = sh(
-                        script: "git describe --tags --abbrev=0 || echo v0.0.0",
+                        script: 'git describe --tags --abbrev=0 || echo v0.0.0',
                         returnStdout: true
                     ).trim()
 
-                    def parts = lastTag.replace('v','').split('\\.')
-                    int major = parts[0] as int
-                    int minor = parts[1] as int
-                    int patch = parts[2] as int
+                    def (major, minor, patch) = lastTag.replace('v','').tokenize('.').collect { it as int }
 
                     if (params.RELEASE_TYPE == 'major') {
                         major++; minor = 0; patch = 0
                     } else if (params.RELEASE_TYPE == 'minor') {
                         minor++; patch = 0
-                    } else if (params.RELEASE_TYPE == 'patch') {
+                    } else {
                         patch++
                     }
 
@@ -95,10 +89,22 @@ pipeline {
                 expression { params.RELEASE_TYPE != 'none' }
             }
             steps {
-                sh """
-                  git tag ${NEW_VERSION}
-                  git push origin ${NEW_VERSION}
-                """
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${GIT_CRED}",
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_TOKEN'
+                    )
+                ]) {
+                    sh """
+                      git config user.name "jenkins"
+                      git config user.email "jenkins@company.com"
+
+                      git tag ${NEW_VERSION}
+
+                      git push https://${GIT_USER}:${GIT_TOKEN}@${GIT_REPO} ${NEW_VERSION}
+                    """
+                }
             }
         }
 
@@ -107,28 +113,18 @@ pipeline {
                 expression { params.RELEASE_TYPE != 'none' }
             }
             steps {
-                echo "Role artifact published: ${ROLE_NAME}:${NEW_VERSION}"
-                echo "Ready to be consumed by Playbook CD"
+                echo "✅ Role '${ROLE_NAME}' released as ${NEW_VERSION}"
+                echo "📦 Artifact = Git tag (${NEW_VERSION})"
             }
         }
     }
 
     post {
         success {
-            script {
-                if (params.RELEASE_TYPE != 'none') {
-                    echo "✅ Role CD completed successfully"
-                    echo "✅ Approved role artifact: ${ROLE_NAME}:${NEW_VERSION}"
-                } else {
-                    echo "✅ Role CI completed successfully (no release triggered)"
-                }
-            }
+            echo "🎉 Role CD completed successfully"
         }
         failure {
             echo "❌ Role CD failed"
-        }
-        aborted {
-            echo "⏸ Release aborted by user"
         }
     }
 }
